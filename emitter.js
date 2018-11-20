@@ -11,7 +11,6 @@ const isStar = false;
  * @returns {Object}
  */
 function getEmitter() {
-
     const events = new Map();
 
     return {
@@ -25,17 +24,24 @@ function getEmitter() {
          */
         on: function (event, context, handler) {
             if (!events.has(event)) {
-                events.set(event, new Map([[context, [handler]]]));
+                const eventsEntry = [context, [handler]];
+
+                events.set(event, new Map([eventsEntry]));
 
                 return this;
             }
-            if (!events.get(event).has(context)) {
-                events.get(event).set(context, [handler]);
+
+            const eventsEntry = events.get(event);
+
+            if (!eventsEntry.has(context)) {
+                eventsEntry.set(context, [handler]);
 
                 return this;
             }
 
-            events.get(event).get(context)
+            events
+                .get(event)
+                .get(context)
                 .push(handler);
 
             return this;
@@ -64,21 +70,31 @@ function getEmitter() {
          */
         emit: function (event) {
             function allEvents(e) {
-                const splitEvent = e.split('.');
-                let newEvents = [];
-                for (let i = 0; i < splitEvent.length; i++) {
-                    newEvents.push((newEvents.length === 0)
-                        ? splitEvent[i] : [newEvents[i - 1], splitEvent[i]].join('.'));
+                const eventParts = e.split('.');
+
+                const newEnents = [];
+                for (let i = 0; i < eventParts.length; i++) {
+                    const part = eventParts[i];
+
+                    const prevEvent = newEnents[i - 1];
+
+                    const curEvent = [prevEvent, part].join('.');
+
+                    newEnents.push((newEnents.length === 0)
+                        ? part : curEvent);
                 }
 
-                return newEvents.reverse();
+                return newEnents.reverse();
             }
-            const newEvents = allEvents(event).filter(emitEvent =>
-                events.has(emitEvent));
 
-            newEvents.forEach(emitEvent =>
-                events.get(emitEvent).forEach((handlers, context) =>
-                    handlers.forEach(handler => handler.call(context))));
+            const newEvents = allEvents(event)
+                .filter(emitEvent => events.has(emitEvent));
+
+            newEvents.forEach(function (emitEvent) {
+                events.get(emitEvent).forEach(function (handlers, context) {
+                    handlers.forEach(handler => handler.call(context));
+                });
+            });
 
             return this;
         },
